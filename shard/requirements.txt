@@ -1,0 +1,4 @@
+grpcio
+grpcio-tools
+boto3
+prometheus-client

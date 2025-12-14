@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package database;
+
+service Coordinator {
+  // --- Public API ---
+
+  rpc RegisterTable(RegisterTableRequest) returns (RegisterTableResponse);
+
+  rpc CreateRecord(CreateRecordRequest) returns (CreateRecordResponse);
+
+  rpc ReadRecord(ReadRecordRequest) returns (ReadRecordResponse);
+
+  rpc DeleteRecord(DeleteRecordRequest) returns (DeleteRecordResponse);
+
+  rpc ExistsRecord(ExistsRecordRequest) returns (ExistsRecordResponse);
+
+  // --- Internal API ---
+
+  rpc RegisterShard(RegisterShardRequest) returns (RegisterShardResponse);
+}
+
+service Shard {
+  // --- Internal API ---
+
+  rpc ShardCreateRecord(CreateRecordRequest) returns (CreateRecordResponse);
+
+  rpc ShardReadRecord(ReadRecordRequest) returns (ReadRecordResponse);
+
+  rpc ShardDeleteRecord(DeleteRecordRequest) returns (DeleteRecordResponse);
+
+  rpc ShardExistsRecord(ExistsRecordRequest) returns (ExistsRecordResponse);
+
+  rpc PromoteToLeader(PromoteToLeaderRequest) returns (PromoteToLeaderResponse);
+}
+
+// --- Message Definitions ---
+
+message RegisterTableRequest {
+  string table_name = 1;
+  PrimaryKeySchema primary_key = 2;
+}
+
+message PrimaryKeySchema {
+  string partition_key_name = 1;
+  string sort_key_name = 2;
+}
+
+message RegisterTableResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message Record {
+  string partition_key = 1;
+  string sort_key = 2;
+  map<string, string> attributes = 3;
+  int64 timestamp = 4;
+}
+
+message CreateRecordRequest {
+  string table_name = 1;
+  Record record = 2;
+}
+
+message CreateRecordResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ReadRecordRequest {
+  string table_name = 1;
+  string partition_key = 2;
+  string sort_key = 3;
+}
+
+message ReadRecordResponse {
+  bool found = 1;
+  repeated Record records = 2; // Can return multiple records for a partition key
+}
+
+message DeleteRecordRequest {
+  string table_name = 1;
+  string partition_key = 2;
+  string sort_key = 3;
+}
+
+message DeleteRecordResponse {
+  bool success = 1;
+}
+
+message ExistsRecordRequest {
+  string table_name = 1;
+  string partition_key = 2;
+  string sort_key = 3;
+}
+
+message ExistsRecordResponse {
+  bool exists = 1;
+}
+
+// --- Internal Shard Registration ---
+
+message RegisterShardRequest {
+  string shard_id = 1;
+  string address = 2;
+}
+
+message RegisterShardResponse {
+  bool success = 1;
+  string message = 2;
+  bool is_leader = 3;
+}
+
+message PromoteToLeaderRequest {
+  string shard_id = 1;
+}
+
+message PromoteToLeaderResponse {
+  bool success = 1;
+  string message = 2;
+}

@@ -1,0 +1,143 @@
+services:
+  coordinator:
+    build:
+      context: .
+      dockerfile: coordinator/Dockerfile
+    ports:
+      - "50050:50050"
+    environment:
+      - PORT=50050
+      - PYTHONUNBUFFERED=1
+    networks:
+      - lab-net
+
+  shard-1:
+    build:
+      context: .
+      dockerfile: shard/Dockerfile
+    environment:
+      - PORT=50051
+      - SHARD_ID=shard-1
+      - COORDINATOR_ADDRESS=coordinator:50050
+      - PYTHONUNBUFFERED=1
+      - S3_BUCKET=lab-replication-logs
+      - S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_DEFAULT_REGION=eu-central-1
+    depends_on:
+      - coordinator
+      - createbuckets
+    networks:
+      - lab-net
+
+  shard-2:
+    build:
+      context: .
+      dockerfile: shard/Dockerfile
+    environment:
+      - PORT=50051
+      - SHARD_ID=shard-2
+      - COORDINATOR_ADDRESS=coordinator:50050
+      - PYTHONUNBUFFERED=1
+      - S3_BUCKET=lab-replication-logs
+      - S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_DEFAULT_REGION=eu-central-1
+    depends_on:
+      - coordinator
+      - createbuckets
+    networks:
+      - lab-net
+
+  shard-3:
+    build:
+      context: .
+      dockerfile: shard/Dockerfile
+    environment:
+      - PORT=50051
+      - SHARD_ID=shard-3
+      - COORDINATOR_ADDRESS=coordinator:50050
+      - PYTHONUNBUFFERED=1
+      - S3_BUCKET=lab-replication-logs
+      - S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_DEFAULT_REGION=eu-central-1
+    depends_on:
+      - coordinator
+      - createbuckets
+    networks:
+      - lab-net
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lab-net
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c " /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin; /usr/bin/mc mb myminio/lab-replication-logs; /usr/bin/mc policy set public myminio/lab-replication-logs; exit 0; "
+    networks:
+      - lab-net
+
+  alertmanager:
+    image: prom/alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    networks:
+      - lab-net
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/alert_rules.yml:/etc/prometheus/alert_rules.yml
+    networks:
+      - lab-net
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - lab-net
+
+  n8n:
+    image: n8nio/n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      - N8N_LOG_LEVEL=info
+    networks:
+      - lab-net
+
+networks:
+  lab-net:
+    driver: bridge
