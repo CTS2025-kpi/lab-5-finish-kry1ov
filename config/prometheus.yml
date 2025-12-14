@@ -17,4 +17,5 @@ scrape_configs:
 
   - job_name: "shards"
     static_configs:
-      - targets: ["shard-1:50052", "shard-2:50052", "shard-3:50052"]
+      - targets: ["shard:50052"]
+

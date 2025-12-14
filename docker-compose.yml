@@ -5,19 +5,30 @@ services:
       dockerfile: coordinator/Dockerfile
     ports:
       - "50050:50050"
+      - "8000:8000"
     environment:
       - PORT=50050
       - PYTHONUNBUFFERED=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker-compose.yml:/app/docker-compose.yml
     networks:
       - lab-net
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-  shard-1:
+  shard:
     build:
       context: .
       dockerfile: shard/Dockerfile
+    deploy:
+      mode: replicated
+      replicas: 3
     environment:
       - PORT=50051
-      - SHARD_ID=shard-1
       - COORDINATOR_ADDRESS=coordinator:50050
       - PYTHONUNBUFFERED=1
       - S3_BUCKET=lab-replication-logs
@@ -25,46 +36,11 @@ services:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
       - AWS_DEFAULT_REGION=eu-central-1
-    depends_on:
-      - coordinator
-      - createbuckets
-    networks:
-      - lab-net
-
-  shard-2:
-    build:
-      context: .
-      dockerfile: shard/Dockerfile
-    environment:
-      - PORT=50051
-      - SHARD_ID=shard-2
-      - COORDINATOR_ADDRESS=coordinator:50050
-      - PYTHONUNBUFFERED=1
-      - S3_BUCKET=lab-replication-logs
-      - S3_ENDPOINT_URL=http://minio:9000
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
-      - AWS_DEFAULT_REGION=eu-central-1
-    depends_on:
-      - coordinator
-      - createbuckets
-    networks:
-      - lab-net
-
-  shard-3:
-    build:
-      context: .
-      dockerfile: shard/Dockerfile
-    environment:
-      - PORT=50051
-      - SHARD_ID=shard-3
-      - COORDINATOR_ADDRESS=coordinator:50050
-      - PYTHONUNBUFFERED=1
-      - S3_BUCKET=lab-replication-logs
-      - S3_ENDPOINT_URL=http://minio:9000
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
-      - AWS_DEFAULT_REGION=eu-central-1
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:50052/health')\" || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     depends_on:
       - coordinator
       - createbuckets
