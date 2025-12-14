@@ -1,0 +1,46 @@
+{
+    "name": "Incident Response Workflow",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "alert",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ],
+            "webhookId": "alert"
+        },
+        {
+            "parameters": {
+                "jsCode": "const body = items[0].json.body || items[0].json;\nconst alerts = body.alerts || [];\n\nconst incidents = alerts.map(alert => ({\n  title: (alert.labels ? alert.labels.alertname : 'Unknown') + ' - ' + (alert.labels ? alert.labels.instance : 'Unknown'),\n  description: (alert.annotations ? alert.annotations.description : 'No description'),\n  severity: (alert.labels ? alert.labels.severity : 'info'),\n  timestamp: new Date().toISOString()\n}));\n\n// Log to Docker stdout\nconsole.log('Received Incidents:', JSON.stringify(incidents, null, 2));\n\nreturn incidents.map(i => ({json: i}));"
+            },
+            "name": "Process Alerts",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Process Alerts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
